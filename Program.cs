@@ -45,9 +45,8 @@ namespace MinimalC_ImGui
             // Main application loop
             while (_window.Exists)
             {
-                InputSnapshot snapshot = _window.PumpEvents();
                 if (!_window.Exists) { break; }
-                _controller.Update(1f / 60f, snapshot); // Feed the input events to our ImGui controller, which passes them through to ImGui.
+                _controller.Update(1f / 60f); // Feed the input events to our ImGui controller, which passes them through to ImGui.
 
                 SubmitUI();
 

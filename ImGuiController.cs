@@ -485,7 +485,7 @@ namespace ImGuiNET
         /// <summary>
         /// Updates ImGui input and IO configuration state.
         /// </summary>
-        public void Update(float deltaSeconds, InputSnapshot snapshot)
+        public void Update(float deltaSeconds)
         {
             if (_frameBegun)
             {
@@ -495,7 +495,7 @@ namespace ImGuiNET
             }
 
             SetPerFrameImGuiData(deltaSeconds);
-            UpdateImGuiInput(snapshot);
+            UpdateImGuiInput();
             UpdateMonitors();
 
 
@@ -609,54 +609,68 @@ namespace ImGuiNET
             return result != ImGuiKey.None;
         }
 
-        private void UpdateImGuiInput(InputSnapshot snapshot)
+        private void UpdateImGuiInput()
         {
             ImGuiIOPtr io = ImGui.GetIO();
-            //io.AddMousePosEvent(snapshot.MousePosition.X, snapshot.MousePosition.Y);
-            //io.AddMouseButtonEvent(0, snapshot.IsMouseDown(MouseButton.Left));
-            //io.AddMouseButtonEvent(1, snapshot.IsMouseDown(MouseButton.Right));
-            //io.AddMouseButtonEvent(2, snapshot.IsMouseDown(MouseButton.Middle));
-            io.AddMouseButtonEvent(3, snapshot.IsMouseDown(MouseButton.Button1));
-            io.AddMouseButtonEvent(4, snapshot.IsMouseDown(MouseButton.Button2));
-            io.AddMouseWheelEvent(0f, snapshot.WheelDelta);
-
             if (p_sdl_GetGlobalMouseState == null)
             {
                 p_sdl_GetGlobalMouseState = Sdl2Native.LoadFunction<SDL_GetGlobalMouseState_t>("SDL_GetGlobalMouseState");
+
             }
 
             int x, y;
             unsafe
             {
                 uint buttons = p_sdl_GetGlobalMouseState(&x, &y);
-                io.AddMouseButtonEvent(0, (buttons & 0b0001) != 0);
-                io.AddMouseButtonEvent(1, (buttons & 0b0010) != 0);
-                io.AddMouseButtonEvent(2, (buttons & 0b0100) != 0);
-
             }
             io.AddMousePosEvent(x, y);
-            //io.MousePos = new Vector2(x, y);
 
-
-            for (int i = 0; i < snapshot.KeyCharPresses.Count; i++)
-            {
-                io.AddInputCharacter(snapshot.KeyCharPresses[i]);
-            }
-
-            for (int i = 0; i < snapshot.KeyEvents.Count; i++)
-            {
-                KeyEvent keyEvent = snapshot.KeyEvents[i];
-                if (TryMapKey(keyEvent.Key, out ImGuiKey imguikey))
-                {
-                    io.AddKeyEvent(imguikey, keyEvent.Down);
-                }
-            }
             ImVector<ImGuiViewportPtr> viewports = ImGui.GetPlatformIO().Viewports;
-            for (int i = 1; i < viewports.Size; i++)
+            for (int vpI = 0; vpI < viewports.Size; vpI++)
             {
-                ImGuiViewportPtr v = viewports[i];
+                ImGuiViewportPtr v = viewports[vpI];
                 VeldridImGuiWindow window = ((VeldridImGuiWindow)GCHandle.FromIntPtr(v.PlatformUserData).Target);
-                window.Update();
+                InputSnapshot snapshot = window.Update();
+                io.AddMouseWheelEvent(0f, snapshot.WheelDelta);
+
+                for (int i = 0; i < snapshot.KeyCharPresses.Count; i++)
+                {
+                    io.AddInputCharacter(snapshot.KeyCharPresses[i]);
+                }
+
+                for (int i = 0; i < snapshot.KeyEvents.Count; i++)
+                {
+                    KeyEvent keyEvent = snapshot.KeyEvents[i];
+                    if (TryMapKey(keyEvent.Key, out ImGuiKey imguikey))
+                    {
+                        io.AddKeyEvent(imguikey, keyEvent.Down);
+                    }
+                }
+                SDL_WindowFlags flags = Sdl2Native.SDL_GetWindowFlags(window.Window.SdlWindowHandle);
+
+                for (int i = 0; i < snapshot.MouseEvents.Count; i++)
+                {
+                    MouseEvent mouseEvent = snapshot.MouseEvents[i];
+                    switch (mouseEvent.MouseButton)
+                    {
+                        case MouseButton.Left:
+                            io.AddMouseButtonEvent(0, mouseEvent.Down);
+                            break;
+                        case MouseButton.Right:
+                            io.AddMouseButtonEvent(1, mouseEvent.Down);
+                            break;
+                        case MouseButton.Middle:
+                            io.AddMouseButtonEvent(2, mouseEvent.Down);
+                            break;
+                        case MouseButton.Button1:
+                            io.AddMouseButtonEvent(3, mouseEvent.Down);
+                            break;
+                        case MouseButton.Button2:
+                            io.AddMouseButtonEvent(4, mouseEvent.Down);
+                            break;
+                    }
+
+                }
             }
         }
 

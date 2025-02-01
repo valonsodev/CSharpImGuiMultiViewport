@@ -70,9 +70,9 @@ namespace ImGuiNET
             vp.PlatformUserData = (IntPtr)_gcHandle;
         }
 
-        public void Update()
+        public InputSnapshot Update()
         {
-            _window.PumpEvents();
+            return _window.PumpEvents();
         }
 
         public void Dispose()
